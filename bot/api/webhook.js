@@ -21,7 +21,7 @@ function estadoActual(c) {
     switch (t.fase) {
       case 'EN_VENTA': return `• ${nombre}: ${t.cantidadDisponible} ${t.cantidadDisponible === 1 ? 'disponible' : 'disponibles'}${de}${precio}`;
       case 'AGOTADA': return `• ${nombre}: agotada`;
-      case 'PROXIMA': return `• ${nombre}: ${t.cantidadTotal} ${t.cantidadTotal === 1 ? 'entrada cargada' : 'entradas cargadas'}${precio}, todavía sin habilitar`;
+      case 'PROXIMA': return `• ${nombre}: Próximamente, ${t.cantidadTotal} ${t.cantidadTotal === 1 ? 'entrada' : 'entradas'}${precio}`;
       default: return `• ${nombre}: cargada, todavía sin cantidad de entradas`;
     }
   });

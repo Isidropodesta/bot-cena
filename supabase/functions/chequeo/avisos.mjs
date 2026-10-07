@@ -20,12 +20,12 @@ function linea(e, conCena) {
     case 'CENA_ELIMINADA': return `🗑️ Sacaron la cena ${e.cenaNombre}`;
     case 'APERTURA_VENTA': return `🟢 Abrió la venta: ${d}${e.precio != null ? ` a ${pesos(e.precio)}` : ''}`;
     case 'REPOSICION':
-      if (e.estado === 'NO_SE_PUEDE_COMPRAR') return `🟣 Cargaron entradas pero a ${pesos(e.precio)}: todavía no se pueden comprar${d ? ` (${d})` : ''}`;
+      if (e.estado === 'NO_SE_PUEDE_COMPRAR') return `🟣 Próximamente: cargaron entradas a ${pesos(e.precio)}, todavía no salen a la venta${d ? ` (${d})` : ''}`;
       return `🟢 Repusieron entradas: ${dos}${e.despues} ${e.despues === 1 ? 'disponible' : 'disponibles'}${e.precio != null ? ` a ${pesos(e.precio)}` : ''}`;
     case 'AGOTADA': return `🔴 Se agotó ${d}`;
     case 'PRECIO_CAMBIO': return `💲 Cambió el precio: ${dos}${pesos(e.antes)} → ${pesos(e.despues)}`;
-    case 'PRECIO_SIMBOLICO_ACTIVADO': return `🟣 Precio simbólico: ${dos}${pesos(e.antes)} → ${pesos(e.despues)}. Todavía no se puede comprar`;
-    case 'PRECIO_SIMBOLICO_RESUELTO': return `✅ Ya se pueden comprar: el precio pasó a ${pesos(e.despues)}${d ? ` (${d})` : ''}`;
+    case 'PRECIO_SIMBOLICO_ACTIVADO': return `🟣 Precio simbólico: ${dos}${pesos(e.antes)} → ${pesos(e.despues)}. Próximamente: todavía no sale a la venta`;
+    case 'PRECIO_SIMBOLICO_RESUELTO': return `✅ En venta: el precio pasó a ${pesos(e.despues)}${d ? ` (${d})` : ''}`;
     case 'NUEVO_TIPO_ENTRADA': return `🆕 Nuevo tipo de entrada: ${dos}${e.despues ?? 's/d'} ${e.despues === 1 ? 'disponible' : 'disponibles'}${e.precio != null ? ` a ${pesos(e.precio)}` : ''}`;
     default: return e.evento;
   }

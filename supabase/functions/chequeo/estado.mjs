@@ -52,6 +52,9 @@ function calcularVista(tipos, cenaHabilitada) {
   // La tanda actual es la que está en venta; si no hay, la última agotada; si no, la primera por orden.
   const actual = estado === 'EN_VENTA' ? vendibles[0] : estado === 'AGOTADA' ? agotadas[agotadas.length - 1] : ordenadas[0];
   const proximas = tipos.filter((t) => t.fase === 'PROXIMA');
+  // Tandas que ya salieron a la venta (en venta o agotadas), sin contar las de precio simbólico.
+  const salieron = ordenadas.filter((t) => (t.fase === 'EN_VENTA' || t.fase === 'AGOTADA') && t.precio !== null && t.precio > PRECIO_MINIMO_REAL);
+  const sumaCompleta = (lista, campo) => (lista.every((t) => t[campo] !== null) ? lista.reduce((n, t) => n + t[campo], 0) : null);
   // La próxima tanda con cantidad real: la primera por venir después de la actual (o, en Próximamente, la primera de todas).
   const siguiente = ordenadas.find((t) => t.fase === 'PROXIMA' && (estado === 'PROXIMAMENTE' || porOrden(t, actual) > 0));
   return {
@@ -62,6 +65,7 @@ function calcularVista(tipos, cenaHabilitada) {
     tandaId: actual?.id ?? null,
     hayOtraPorVenir: actual ? ordenadas.some((t) => porOrden(t, actual) > 0 && t.estadoOrigen !== 'active') : false,
     vanASalir: proximas.length ? suma(proximas, 'cantidadTotal') : null,
+    salieron: { cantidad: salieron.length, disponibles: sumaCompleta(salieron, 'cantidadDisponible'), total: sumaCompleta(salieron, 'cantidadTotal') },
     proxima: siguiente ? { tipo: siguiente.tipo, cantidad: siguiente.cantidadTotal, precio: siguiente.precio } : null,
   };
 }
