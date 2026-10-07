@@ -70,6 +70,8 @@ async function avisos(chatId) {
 
 const MAX_MENSAJE = 3500;
 
+const escaparHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 async function usuarios(chatId) {
   const [lista, subs] = await Promise.all([listarUsuarios(), todasLasSuscripciones()]);
   const sigue = new Map();
@@ -83,7 +85,8 @@ async function usuarios(chatId) {
   const lineas = lista.map((u) => {
     const m = sigue.get(u.chat_id) ?? { todas: false, cenas: 0 };
     const cenas = m.todas ? 'todas' : `${m.cenas} ${m.cenas === 1 ? 'cena' : 'cenas'}`;
-    return `${u.nombre}${u.usuario ? ` ${u.usuario}` : ''} · entró ${fecha.format(new Date(u.primera_vez))} · sigue ${cenas}`;
+    const nombre = `<a href="tg://user?id=${u.chat_id}">${escaparHtml(u.nombre)}</a>`;
+    return `${nombre} · ${u.usuario ? escaparHtml(u.usuario) : 'sin @usuario'} · id ${u.chat_id} · entró ${fecha.format(new Date(u.primera_vez))} · sigue ${cenas}`;
   });
   const partes = [];
   let actual = `Usuarios: ${lista.length}`;
@@ -92,7 +95,7 @@ async function usuarios(chatId) {
     else actual += `\n${l}`;
   }
   partes.push(actual);
-  for (const p of partes) await enviar(chatId, p);
+  for (const p of partes) await enviar(chatId, p, { parse_mode: 'HTML' });
 }
 
 async function boton(cb) {
