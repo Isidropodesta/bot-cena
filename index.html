@@ -28,7 +28,7 @@ body {
   margin: 0; min-height: 100vh; color: var(--champagne); font: 400 16px/1.4 var(--texto);
   background: radial-gradient(ellipse 130% 55% at 50% -8%, var(--malbec-claro) 0%, var(--malbec) 72%) no-repeat, var(--malbec);
 }
-.contenedor { max-width: 1240px; margin: 0 auto; padding: 16px 16px 48px; }
+.contenedor { max-width: 1180px; margin: 0 auto; padding: 16px 16px 48px; }
 button { font: inherit; color: inherit; cursor: pointer; }
 a { color: inherit; }
 button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--vivo); outline-offset: 2px; }
@@ -44,7 +44,7 @@ h1 { margin: 14px 0 8px; font: 900 clamp(52px, 14vw, 96px)/.9 var(--display); le
 .subtitulo { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 16px; }
 .subtitulo .pildora { flex: none; }
 .resumen { margin: 0; flex: 1 1 auto; min-width: 0; font-size: .84rem; color: var(--rosado); }
-.resumen b { color: var(--champagne); font: 800 1.35rem/1 var(--display); }
+.resumen b { font: inherit; font-weight: 800; color: var(--champagne); }
 
 .layout { display: flex; flex-direction: column; gap: 14px; }
 .principal { min-width: 0; }
@@ -60,13 +60,15 @@ h1 { margin: 14px 0 8px; font: 900 clamp(52px, 14vw, 96px)/.9 var(--display); le
 .notif-lista .n-nombre { flex: 1 1 100%; font-weight: 600; font-size: .9rem; }
 .notif-lista a { margin-left: auto; font-size: .8rem; font-weight: 700; color: var(--rosado); text-underline-offset: 3px; }
 .notif-nota { margin: 8px 0 0; font-size: .74rem; color: var(--rosado); }
-.etq { font-size: .64rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; color: #fff; }
+.etq { font-size: .64rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; color: #fff; white-space: nowrap; }
 .etq.EN_VENTA { background: var(--venta); }
 .etq.AGOTADA { background: var(--agotada); }
 .etq.PROXIMAMENTE { background: var(--proximamente); }
 .etq.POCAS { background: var(--pocas); }
 @media (min-width: 1100px) {
-  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 24px; align-items: start; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+  .contenedor.con-notif .layout { grid-template-columns: minmax(0, 1fr) 280px; }
+  .contenedor.con-notif .subtitulo { margin-right: 304px; }
   .notificadas { order: 0; position: sticky; top: 16px; }
   .notif-toggle { pointer-events: none; }
   .flecha { display: none; }
@@ -90,15 +92,15 @@ h1 { margin: 14px 0 8px; font: 900 clamp(52px, 14vw, 96px)/.9 var(--display); le
 .pestanas button[aria-selected="true"] { background: var(--champagne); color: var(--malbec); border-color: var(--champagne); }
 .pestanas button[aria-selected="true"] .n { background: rgba(58, 15, 37, .14); }
 
-.grilla { display: grid; grid-template-columns: 1fr; gap: 22px 20px; }
-@media (min-width: 760px) { .grilla { grid-template-columns: repeat(2, 1fr); } :root { --talon: 108px; } }
-@media (min-width: 1100px) { .grilla { grid-template-columns: repeat(3, 1fr); } .layout.con-notif .grilla { grid-template-columns: repeat(2, 1fr); } }
+.grilla { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px 20px; align-items: start; }
+@media (min-width: 760px) { .grilla { grid-template-columns: repeat(2, minmax(0, 1fr)); } :root { --talon: 108px; } }
+@media (min-width: 1100px) { .grilla { grid-template-columns: repeat(3, minmax(0, 1fr)); } .contenedor.con-notif .grilla { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .vacio { grid-column: 1 / -1; text-align: center; padding: 48px 0; color: var(--rosado); }
 
 .entrada { position: relative; margin-top: 8px; color: var(--tinta); --fondo: var(--papel); --suave: rgba(42, 10, 26, .66); min-width: 0; }
 .entrada.AGOTADA { --fondo: var(--papel-agotada); --suave: rgba(42, 10, 26, .5); }
 .entrada.AGOTADA .nombre, .entrada.AGOTADA .num, .entrada.AGOTADA .dias { color: rgba(42, 10, 26, .62); }
-.ticket { position: relative; display: grid; grid-template-columns: 1fr var(--talon); }
+.ticket { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) var(--talon); cursor: pointer; }
 .papel {
   position: absolute; inset: 0; background: var(--fondo); border-radius: 18px;
   -webkit-mask: radial-gradient(circle 10px at calc(100% - var(--talon)) 0, #0000 98%, #000), radial-gradient(circle 10px at calc(100% - var(--talon)) 100%, #0000 98%, #000);
@@ -106,28 +108,24 @@ h1 { margin: 14px 0 8px; font: 900 clamp(52px, 14vw, 96px)/.9 var(--display); le
   mask: radial-gradient(circle 10px at calc(100% - var(--talon)) 0, #0000 98%, #000), radial-gradient(circle 10px at calc(100% - var(--talon)) 100%, #0000 98%, #000);
   mask-composite: intersect;
 }
+.entrada.abierta .papel { border-radius: 18px 18px 0 0; }
 .cuerpo { position: relative; padding: 18px 12px 16px 18px; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .fecha { margin: 0; font-size: .78rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--suave); }
-.nombre { margin: 0; font: 800 1.18rem/1.15 var(--texto); overflow-wrap: anywhere; padding-right: 4px; }
-.lugar, .ritmo, .info { margin: 0; font-size: .86rem; color: var(--suave); }
-.info { font-size: .8rem; }
-.info[hidden], .ritmo[hidden], .sin-mas[hidden] { display: none; }
-.tandas { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.caja { display: flex; flex-direction: column; gap: 6px; padding: 9px 11px; border-radius: 12px; font-size: .84rem; background: var(--caja-venta); }
-.caja.agotada { background: var(--caja-agotada); }
-.caja.proxima { background: var(--caja-proxima); }
-.caja .fila { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
-.caja .etqs { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
-.t-nombre { font-weight: 800; overflow-wrap: break-word; }
-.t-texto { margin: 0; flex: 1 1 150px; font-weight: 600; color: var(--proximamente); }
+.nombre { margin: 0; font: 800 17px/1.2 var(--texto); overflow-wrap: break-word; word-break: normal; }
+@media (min-width: 760px) { .nombre { font-size: 18px; } }
+.activa { margin: 2px 0 0; font-size: .86rem; font-weight: 700; }
+.activa[hidden], .disp[hidden], .sin-cantidad[hidden], .proxima-tanda[hidden] { display: none; }
+.disp { display: flex; flex-direction: column; gap: 5px; }
 .barra { height: 8px; border-radius: 999px; background: rgba(42, 10, 26, .14); overflow: hidden; }
-.caja.proxima .barra { background: rgba(47, 93, 138, .2); }
 .relleno { height: 100%; width: 0; border-radius: 999px; background: var(--venta); transition: width .6s ease; }
 .relleno.pocas { background: var(--pocas); }
 .relleno.azul { background: var(--proximamente); }
-.cant { font-weight: 700; }
-.precio { font-weight: 700; white-space: nowrap; }
-.sin-mas { margin: 2px 0 0; font-size: .76rem; color: var(--suave); }
+.entrada.AGOTADA .disp .relleno { background: var(--agotada); }
+.fila-disp { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; font-size: .8rem; }
+.fila-disp .cant { flex: none; font-weight: 700; }
+.fila-disp .ritmo { flex: 1 1 auto; min-width: 0; text-align: right; color: var(--suave); }
+.sin-cantidad, .proxima-tanda { margin: 0; font-size: .84rem; font-weight: 600; color: var(--proximamente); }
+.ver-detalle { align-self: flex-start; padding: 2px 0; border: 0; background: none; font-size: .86rem; font-weight: 700; color: var(--boton); text-decoration: underline; text-underline-offset: 3px; }
 .acciones { display: flex; gap: 8px; margin-top: 4px; }
 .campana { display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; font-weight: 700; border-radius: 12px; }
 .comprar { flex: 1; text-align: center; text-decoration: none; background: var(--boton); color: var(--champagne); padding: 11px 12px; border-radius: 12px; font-weight: 800; }
@@ -136,7 +134,7 @@ h1 { margin: 14px 0 8px; font: 900 clamp(52px, 14vw, 96px)/.9 var(--display); le
 .entrada .campana.grande { flex: 1; padding: 11px 12px; text-align: center; }
 .entrada .campana[aria-pressed="true"] { background: var(--boton); color: var(--champagne); border-color: var(--boton); }
 
-.talon { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 44px 6px 16px; border-left: 2px dashed rgba(42, 10, 26, .32); gap: 2px; }
+.talon { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; text-align: center; padding: 46px 6px 16px; border-left: 2px dashed rgba(42, 10, 26, .32); gap: 2px; }
 .talon small { font-size: .72rem; font-weight: 600; color: var(--suave); line-height: 1.15; }
 .num { font: 900 3.1rem/.95 var(--display); color: var(--tinta); }
 .num.azul { color: var(--proximamente); }
@@ -153,6 +151,26 @@ h1 { margin: 14px 0 8px; font: 900 clamp(52px, 14vw, 96px)/.9 var(--display); le
 .etiqueta-pocas[hidden] { display: none; }
 .sacude { animation: sacude .45s ease; }
 @keyframes sacude { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-16deg); } 40% { transform: rotate(13deg); } 60% { transform: rotate(-9deg); } 80% { transform: rotate(5deg); } }
+
+.detalle { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s ease; background: var(--fondo); border-radius: 0 0 18px 18px; }
+.entrada.abierta .detalle { grid-template-rows: 1fr; }
+.detalle > div { overflow: hidden; min-height: 0; }
+.detalle .interior { padding: 0 18px; }
+.entrada.abierta .detalle .interior { padding: 14px 18px 16px; border-top: 2px dashed rgba(42, 10, 26, .28); }
+.tandas { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.caja { display: flex; flex-direction: column; gap: 6px; padding: 9px 11px; border-radius: 12px; font-size: .84rem; background: var(--caja-venta); }
+.caja.agotada { background: var(--caja-agotada); }
+.caja.proxima { background: var(--caja-proxima); }
+.caja .fila { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.caja .etqs { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
+.t-nombre { flex: 0 1 auto; min-width: 0; font-weight: 800; overflow-wrap: break-word; }
+.t-texto { margin: 0; flex: 1 1 auto; min-width: 0; font-weight: 600; color: var(--proximamente); }
+.caja.proxima .barra { background: rgba(47, 93, 138, .2); }
+.caja .cant { font-weight: 700; }
+.caja .precio { font-weight: 700; white-space: nowrap; }
+.sin-mas { margin: 0 0 12px; font-size: .76rem; color: var(--suave); }
+.total { margin: 0 0 12px; padding: 11px 14px; border-radius: 12px; background: var(--malbec); color: var(--champagne); font-weight: 700; text-align: center; }
+.cerrar { display: block; margin: 0 auto; padding: 4px 8px; border: 0; background: none; font-weight: 700; color: var(--boton); text-decoration: underline; text-underline-offset: 3px; }
 
 .hoja { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; justify-content: center; }
 .hoja[hidden] { display: none; }
@@ -179,7 +197,7 @@ h1 { margin: 14px 0 8px; font: 900 clamp(52px, 14vw, 96px)/.9 var(--display); le
 </style>
 </head>
 <body>
-<div class="contenedor">
+<div class="contenedor" id="contenedor">
   <div class="linea-estado">
     <span class="en-vivo"><span class="punto" id="punto"></span><span id="revision">Cargando…</span></span>
     <a class="pildora" id="todas" target="_blank" rel="noopener noreferrer"></a>
@@ -347,21 +365,22 @@ function etiqueta(fase, pocas) {
   return h('span', { class: 'etqs' }, h('span', { class: `etq ${clave}`, text: ESTADOS[clave] }), pocas ? h('span', { class: 'etq POCAS', text: 'Quedan pocas' }) : null);
 }
 
+const textoSinCantidad = (t) => `${bonito(t.tipo ?? 'Tanda')} cargada, todavía sin cantidad de entradas`;
+
 function cajaTanda(t) {
   const nombre = bonito(t.tipo ?? 'Tanda');
   const total = t.cantidadTotal;
   if (t.fase === 'SIN_CANTIDAD') {
     return h('li', { class: 'caja proxima' },
-      h('div', { class: 'fila' }, h('p', { class: 't-texto', text: `${nombre} cargada, todavía sin cantidad de entradas` }), etiqueta('PROXIMA', false)));
+      h('div', { class: 'fila' }, h('p', { class: 't-texto', text: textoSinCantidad(t) }), etiqueta('PROXIMA', false)));
   }
-  const enVenta = t.fase === 'EN_VENTA';
   const pocas = t.estado === 'POCAS';
   const libres = t.fase === 'EN_VENTA' ? t.cantidadDisponible : t.fase === 'PROXIMA' ? total : 0;
   const pct = t.fase === 'PROXIMA' ? 100 : total ? (libres ?? 0) / total * 100 : 0;
   const relleno = h('div', { class: `relleno${pocas ? ' pocas' : ''}${t.fase === 'PROXIMA' ? ' azul' : ''}` });
   relleno.style.width = `${Math.max(0, Math.min(100, pct))}%`;
   return h('li', { class: `caja ${t.fase === 'AGOTADA' ? 'agotada' : t.fase === 'PROXIMA' ? 'proxima' : 'venta'}` },
-    h('div', { class: 'fila' }, h('span', { class: 't-nombre', text: nombre }), etiqueta(t.fase, enVenta && pocas)),
+    h('div', { class: 'fila' }, h('span', { class: 't-nombre', text: nombre }), etiqueta(t.fase, t.fase === 'EN_VENTA' && pocas)),
     h('div', { class: 'barra' }, relleno),
     h('div', { class: 'fila' },
       h('span', { class: 'cant', text: `${disponibles(libres)}${total === null ? '' : ` de ${cant(total)}`}` }),
@@ -425,7 +444,7 @@ function renderNotificadas() {
     if (c) filas.push({ id, nombre: c.nombre, estado: c.vista.estado });
   }
   $('notificadas').hidden = filas.length === 0;
-  $('layout').classList.toggle('con-notif', filas.length > 0);
+  $('contenedor').classList.toggle('con-notif', filas.length > 0);
   if (!filas.length) return;
   $('notif-titulo').textContent = `Cenas que te notificamos (${filas.length})`;
   $('notif-lista').replaceChildren(...filas.map((f) => {
@@ -454,27 +473,40 @@ function crearCard(c) {
     pocas: h('span', { class: 'etiqueta-pocas', text: 'Quedan pocas', hidden: true }),
     fecha: h('p', { class: 'fecha' }),
     nombre: h('h2', { class: 'nombre' }),
-    lugar: h('p', { class: 'lugar' }),
-    ritmo: h('p', { class: 'ritmo' }),
-    descripcion: h('p', { class: 'info' }),
-    carreras: h('p', { class: 'info' }),
-    limite: h('p', { class: 'info' }),
-    tandas: h('ul', { class: 'tandas' }),
-    sinMas: h('p', { class: 'sin-mas', text: 'Por ahora no hay otra venta cargada en egrefest. Puede que la carguen más adelante o que no haya.' }),
+    activa: h('p', { class: 'activa' }),
+    relleno: h('div', { class: 'relleno' }),
+    cant: h('span', { class: 'cant' }),
+    ritmo: h('span', { class: 'ritmo' }),
+    sinCantidad: h('p', { class: 'sin-cantidad' }),
+    proxima: h('p', { class: 'proxima-tanda' }),
+    ver: h('button', { class: 'ver-detalle', type: 'button', 'aria-expanded': 'false', text: 'Ver tandas y detalle ▾' }),
     acciones: h('div', { class: 'acciones' }),
     sello: h('span', { class: 'sello' }),
     quedan: h('small'),
     num: h('div', { class: 'num' }),
     leyenda: h('small'),
     dias: h('div', { class: 'dias' }),
+    interior: h('div', { class: 'interior' }),
+    cerrar: h('button', { class: 'cerrar', type: 'button', text: 'Cerrar detalle ▴' }),
   };
+  r.disp = h('div', { class: 'disp' }, h('div', { class: 'barra' }, r.relleno), h('div', { class: 'fila-disp' }, r.cant, r.ritmo));
+  const detalle = h('div', { class: 'detalle', inert: true }, h('div', {}, r.interior));
   const ticket = h('div', { class: 'ticket' },
     h('div', { class: 'papel' }),
-    h('div', { class: 'cuerpo' }, r.fecha, r.nombre, r.lugar, r.ritmo, r.descripcion, r.carreras, r.limite, r.tandas, r.sinMas, r.acciones),
+    h('div', { class: 'cuerpo' }, r.fecha, r.nombre, r.activa, r.disp, r.sinCantidad, r.proxima, r.ver, r.acciones),
     h('div', { class: 'talon' }, r.quedan, r.num, r.leyenda, h('hr'), r.dias, h('small', { text: 'para la cena' })),
     r.sello);
-  const card = h('article', { class: 'entrada', 'data-id': c.id }, r.pocas, ticket);
+  const card = h('article', { class: 'entrada', 'data-id': c.id }, r.pocas, ticket, detalle);
   card._r = r;
+  const alternar = () => {
+    const abierta = card.classList.toggle('abierta');
+    r.ver.setAttribute('aria-expanded', String(abierta));
+    r.ver.textContent = abierta ? 'Ocultar tandas y detalle ▴' : 'Ver tandas y detalle ▾';
+    detalle.inert = !abierta;
+  };
+  ticket.addEventListener('click', (e) => { if (!e.target.closest('a, button')) alternar(); });
+  r.ver.addEventListener('click', alternar);
+  r.cerrar.addEventListener('click', alternar);
   r.sello.addEventListener('animationend', () => r.sello.classList.remove('cae'));
   return card;
 }
@@ -484,7 +516,7 @@ function actualizarCard(card, c, evs) {
   const v = c.vista;
   const anterior = card.dataset.estado;
   card.dataset.estado = v.estado;
-  card.className = `entrada ${v.estado}`;
+  card.className = `entrada ${v.estado}${card.classList.contains('abierta') ? ' abierta' : ''}`;
   r.sello.className = `sello ${v.estado}`;
   r.sello.textContent = ESTADOS[v.estado];
   if (st.inicializado && anterior && anterior !== 'EN_VENTA' && v.estado === 'EN_VENTA' && !reducirMovimiento()) {
@@ -494,21 +526,28 @@ function actualizarCard(card, c, evs) {
   r.pocas.hidden = !v.pocas;
   r.fecha.textContent = fechaCorta(c);
   r.nombre.textContent = c.nombre;
-  r.lugar.textContent = c.lugar ?? 'Lugar sin dato';
-  const ritmo = v.estado === 'PROXIMAMENTE' ? '' : ritmoDe(evs);
-  r.ritmo.hidden = !ritmo;
-  r.ritmo.textContent = ritmo;
-  r.descripcion.hidden = !c.descripcion;
-  r.descripcion.textContent = c.descripcion ?? '';
-  r.carreras.hidden = !c.carreras?.length;
-  r.carreras.textContent = c.carreras?.length ? `Carreras: ${c.carreras.join(' · ')}` : '';
-  r.limite.hidden = c.limiteEntradas == null;
-  r.limite.textContent = c.limiteEntradas == null ? '' : `Máximo ${entradas(c.limiteEntradas)} por persona`;
-  r.tandas.replaceChildren(...[...c.tipos].sort(porOrden).map(cajaTanda));
-  r.sinMas.hidden = v.hayOtraPorVenir;
 
-  const vanASalir = v.estado === 'PROXIMAMENTE' && v.vanASalir !== null;
-  const modo = v.estado === 'PROXIMAMENTE' ? (vanASalir ? 'salir' : 'nada') : 'cantidad';
+  const prox = v.estado === 'PROXIMAMENTE';
+  const ordenadas = [...c.tipos].sort(porOrden);
+  const actual = c.tipos.find((t) => t.id === v.tandaId);
+  r.activa.hidden = r.disp.hidden = prox || !actual;
+  if (!r.disp.hidden) {
+    const libres = actual.fase === 'EN_VENTA' ? actual.cantidadDisponible : 0;
+    const total = actual.cantidadTotal;
+    r.activa.textContent = [bonito(actual.tipo ?? 'Tanda'), actual.precio === null ? null : pesos(actual.precio)].filter(Boolean).join(' · ');
+    r.relleno.style.width = `${total ? Math.min(100, (libres ?? 0) / total * 100) : 0}%`;
+    r.relleno.classList.toggle('pocas', actual.estado === 'POCAS');
+    r.cant.textContent = `${disponibles(libres)}${total === null ? '' : ` de ${cant(total)}`}`;
+    r.ritmo.textContent = ritmoDe(evs);
+  }
+  const primera = ordenadas[0];
+  r.sinCantidad.hidden = !(prox && primera && primera.fase === 'SIN_CANTIDAD');
+  r.sinCantidad.textContent = r.sinCantidad.hidden ? '' : textoSinCantidad(primera);
+  r.proxima.hidden = !v.proxima;
+  r.proxima.textContent = v.proxima ? `Próxima tanda: ${bonito(v.proxima.tipo ?? 'Tanda')}, ${entradas(v.proxima.cantidad)} a ${pesos(v.proxima.precio)}` : '';
+
+  const vanASalir = prox && v.vanASalir !== null;
+  const modo = prox ? (vanASalir ? 'salir' : 'nada') : 'cantidad';
   const numero = modo === 'salir' ? v.vanASalir : modo === 'cantidad' ? (v.estado === 'EN_VENTA' ? (v.disponibles ?? 0) : 0) : null;
   r.num.classList.toggle('azul', modo === 'salir');
   if (modo === 'salir') { r.quedan.textContent = 'van a salir'; r.leyenda.textContent = numero === 1 ? 'entrada' : 'entradas'; }
@@ -530,6 +569,11 @@ function actualizarCard(card, c, evs) {
     if (v.estado === 'EN_VENTA') r.acciones.replaceChildren(h('a', { class: 'comprar', href: c.link, target: '_blank', rel: 'noopener noreferrer', text: 'Comprar entrada' }), campana(c, 'icono'));
     else r.acciones.replaceChildren(campana(c, v.estado === 'AGOTADA' ? 'habiliten' : 'salgan'));
   }
+
+  const detalle = [h('ul', { class: 'tandas' }, ordenadas.map(cajaTanda))];
+  if (!v.hayOtraPorVenir) detalle.push(h('p', { class: 'sin-mas', text: 'Por ahora no hay otra venta cargada en egrefest. Puede que la carguen más adelante o que no haya.' }));
+  if (v.estado === 'EN_VENTA' && v.disponibles !== null && v.total !== null) detalle.push(h('p', { class: 'total', text: `En total quedan ${cant(v.disponibles)} de ${cant(v.total)} a la venta` }));
+  r.interior.replaceChildren(...detalle, r.cerrar);
 }
 
 function render() {

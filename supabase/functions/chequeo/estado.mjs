@@ -3,8 +3,6 @@ const env = (k) => globalThis.Deno?.env.get(k) ?? globalThis.process?.env?.[k];
 const SITIO = 'https://www.egrefest.com.ar';
 const PRECIO_MINIMO_REAL = Number(env('PRECIO_MINIMO_REAL') ?? 10);
 const UMBRAL_POCAS = Number(env('UMBRAL_POCAS') ?? 20);
-// La API no trae el lugar: el front del sitio lo muestra fijo ("📍 Terraoliva") en todas las cenas.
-const LUGAR = 'Terraoliva';
 
 const ORDEN_ESTADOS = ['EN_VENTA', 'POCAS', 'NO_SE_PUEDE_COMPRAR', 'AGOTADA', 'NO_HABILITADA', 'SIN_DATO'];
 
@@ -54,6 +52,8 @@ function calcularVista(tipos, cenaHabilitada) {
   // La tanda actual es la que está en venta; si no hay, la última agotada; si no, la primera por orden.
   const actual = estado === 'EN_VENTA' ? vendibles[0] : estado === 'AGOTADA' ? agotadas[agotadas.length - 1] : ordenadas[0];
   const proximas = tipos.filter((t) => t.fase === 'PROXIMA');
+  // La próxima tanda con cantidad real: la primera por venir después de la actual (o, en Próximamente, la primera de todas).
+  const siguiente = ordenadas.find((t) => t.fase === 'PROXIMA' && (estado === 'PROXIMAMENTE' || porOrden(t, actual) > 0));
   return {
     estado,
     pocas: estado === 'EN_VENTA' && disponibles !== null && disponibles <= UMBRAL_POCAS,
@@ -62,6 +62,7 @@ function calcularVista(tipos, cenaHabilitada) {
     tandaId: actual?.id ?? null,
     hayOtraPorVenir: actual ? ordenadas.some((t) => porOrden(t, actual) > 0 && t.estadoOrigen !== 'active') : false,
     vanASalir: proximas.length ? suma(proximas, 'cantidadTotal') : null,
+    proxima: siguiente ? { tipo: siguiente.tipo, cantidad: siguiente.cantidadTotal, precio: siguiente.precio } : null,
   };
 }
 
@@ -96,10 +97,6 @@ export function normalizarCena(ev, ahora, retenidos = []) {
     nombre: ev.name,
     fechaInicio: ev.date_start ?? null,
     fechaFin: ev.date_end ?? null,
-    lugar: LUGAR,
-    descripcion: ev.description || null,
-    carreras: Array.isArray(ev.career_names) ? ev.career_names : [],
-    limiteEntradas: numero(ev.ticket_limit),
     link: linkCena(ev.id),
     estadoOrigen: ev.status ?? null,
     estado,
