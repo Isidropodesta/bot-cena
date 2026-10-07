@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cenas de egresados · Panel de entradas</title>
+<style>
+:root {
+  --bg: #f5f6f8; --card: #fff; --texto: #1c2430; --suave: #5b6675; --borde: #e1e5eb;
+  --verde: #1e8e4e; --verde-bg: #e3f5ea;
+  --amarillo: #8a6100; --amarillo-bg: #fdf1cc;
+  --rojo: #b3261e; --rojo-bg: #fde7e5;
+  --violeta: #6b3fb5; --violeta-bg: #efe8fb;
+  --gris: #5b6675; --gris-bg: #e9ecf1;
+  --acento: #1f5fd1;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161c; --card: #1b212a; --texto: #e8ecf2; --suave: #9aa6b5; --borde: #2b3441;
+    --verde: #5bd68c; --verde-bg: #173826;
+    --amarillo: #f2c14e; --amarillo-bg: #3d3112;
+    --rojo: #ff8a80; --rojo-bg: #40201e;
+    --violeta: #c3a3ff; --violeta-bg: #2e2347;
+    --gris: #9aa6b5; --gris-bg: #262d38;
+    --acento: #7aa7ff;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--texto); font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.contenedor { max-width: 1100px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 1.35rem; margin: 0 0 4px; }
+.revision { color: var(--suave); font-size: .9rem; margin: 0; }
+.aviso { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--amarillo-bg); color: var(--amarillo); border: 1px solid var(--amarillo); font-weight: 600; }
+.barra { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; align-items: center; }
+.filtros { display: flex; flex-wrap: wrap; gap: 6px; }
+.filtros button { font: inherit; font-size: .9rem; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--borde); background: var(--card); color: var(--texto); cursor: pointer; }
+.filtros button[aria-pressed="true"] { background: var(--acento); border-color: var(--acento); color: #fff; }
+.buscador { flex: 1 1 200px; min-width: 0; font: inherit; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--borde); background: var(--card); color: var(--texto); }
+.grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.tarjeta { background: var(--card); border: 1px solid var(--borde); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.tarjeta h2 { font-size: 1rem; margin: 0; overflow-wrap: anywhere; }
+.meta { color: var(--suave); font-size: .88rem; margin: 0; }
+.chip { display: inline-block; align-self: flex-start; padding: 4px 10px; border-radius: 999px; font-size: .85rem; font-weight: 700; }
+.EN_VENTA { background: var(--verde-bg); color: var(--verde); }
+.POCAS { background: var(--amarillo-bg); color: var(--amarillo); }
+.AGOTADA { background: var(--rojo-bg); color: var(--rojo); }
+.NO_SE_PUEDE_COMPRAR { background: var(--violeta-bg); color: var(--violeta); }
+.NO_HABILITADA, .SIN_DATO { background: var(--gris-bg); color: var(--gris); }
+.tipos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.tipo { border: 1px solid var(--borde); border-radius: 8px; padding: 8px 10px; font-size: .9rem; display: grid; gap: 2px; }
+.tipo .fila { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.tipo .nombre { font-weight: 600; overflow-wrap: anywhere; }
+.tipo .chip { font-size: .72rem; padding: 2px 8px; }
+.cambio { font-size: .9rem; margin: 0; }
+.cambio span { color: var(--suave); }
+.stale { color: var(--amarillo); font-size: .82rem; margin: 0; }
+details { font-size: .88rem; }
+summary { cursor: pointer; color: var(--acento); }
+.historial { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 240px; overflow-y: auto; }
+.historial li { color: var(--texto); overflow-wrap: anywhere; }
+.historial li span { color: var(--suave); }
+.comprar { margin-top: auto; text-align: center; text-decoration: none; background: var(--acento); color: #fff; padding: 10px 12px; border-radius: 8px; font-weight: 700; }
+.vacio { color: var(--suave); text-align: center; padding: 40px 0; grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+<div class="contenedor">
+  <h1>Cenas de egresados</h1>
+  <p class="revision" id="revision">Cargando…</p>
+  <div id="aviso"></div>
+  <div class="barra">
+    <div class="filtros" id="filtros"></div>
+    <input class="buscador" id="buscador" type="search" placeholder="Buscar por nombre" aria-label="Buscar por nombre">
+  </div>
+  <div class="grilla" id="grilla"></div>
+</div>
+<script>
+const MIN_STALE = 40;
+const ESTADOS = {
+  EN_VENTA: 'En venta', POCAS: 'Pocas entradas', AGOTADA: 'Agotada',
+  NO_SE_PUEDE_COMPRAR: 'No se puede comprar', NO_HABILITADA: 'No habilitada', SIN_DATO: 'Sin dato',
+};
+const FILTROS = [
+  ['todas', 'Todas', () => true],
+  ['comprar', 'Se pueden comprar', (c) => c.estado === 'EN_VENTA' || c.estado === 'POCAS'],
+  ['agotadas', 'Agotadas', (c) => c.estado === 'AGOTADA'],
+  ['nocomprar', 'No se puede comprar', (c) => c.estado === 'NO_SE_PUEDE_COMPRAR'],
+];
+const estado = { datos: null, historial: [], filtro: 'todas', busqueda: '' };
+
+const $ = (id) => document.getElementById(id);
+const h = (tag, attrs = {}, ...hijos) => {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') el.className = v;
+    else if (k === 'text') el.textContent = v;
+    else el.setAttribute(k, v);
+  }
+  for (const x of hijos.flat()) if (x != null) el.append(x);
+  return el;
+};
+const sinAcentos = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const pesos = (n) => n === null || n === undefined ? 'sin dato' : '$' + n.toLocaleString('es-AR');
+const cant = (n) => n === null || n === undefined ? 'sin dato' : n.toLocaleString('es-AR');
+
+function hace(iso) {
+  const min = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 60000));
+  if (min < 1) return 'hace menos de 1 min';
+  if (min < 60) return `hace ${min} min`;
+  const hs = Math.floor(min / 60);
+  if (hs < 48) return `hace ${hs} h`;
+  return `hace ${Math.floor(hs / 24)} días`;
+}
+const fechaCena = (c) => {
+  if (!c.fechaInicio) return 'Fecha sin dato';
+  return new Date(c.fechaInicio).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Argentina/Mendoza' });
+};
+
+function textoEvento(e) {
+  const t = e.tipoEntrada ? ` (${e.tipoEntrada})` : '';
+  switch (e.evento) {
+    case 'NUEVA_CENA': return 'Se publicó la cena';
+    case 'CENA_ELIMINADA': return 'La cena fue eliminada';
+    case 'APERTURA_VENTA': return `Abrió la venta${t}`;
+    case 'BAJA_STOCK': return `Bajó el stock${t}: ${cant(e.antes)} → ${cant(e.despues)}`;
+    case 'AGOTADA': return `Se agotaron las entradas${t}`;
+    case 'REPOSICION': return `Repusieron ${cant(e.despues)} entradas${t}`;
+    case 'PRECIO_CAMBIO': return `Cambió el precio${t}: ${pesos(e.antes)} → ${pesos(e.despues)}`;
+    case 'PRECIO_SIMBOLICO_ACTIVADO': return `Precio simbólico${t}: ${pesos(e.antes)} → ${pesos(e.despues)}. No se puede comprar`;
+    case 'PRECIO_SIMBOLICO_RESUELTO': return `Se corrigió el precio simbólico${t}: ${pesos(e.antes)} → ${pesos(e.despues)}`;
+    case 'NUEVO_TIPO_ENTRADA': return `Nuevo tipo de entrada${t}`;
+    default: return e.evento;
+  }
+}
+
+function eventosPorCena() {
+  const m = new Map();
+  for (const e of estado.historial) {
+    if (!m.has(e.cenaId)) m.set(e.cenaId, []);
+    m.get(e.cenaId).push(e);
+  }
+  return m;
+}
+
+function vendidas24h(cenaEventos, tipoId) {
+  const desde = Date.parse(estado.datos.desde);
+  const truncado = estado.historial.length >= 3000;
+  const inicioDatos = truncado ? Math.max(desde, Date.parse(estado.historial[estado.historial.length - 1].fecha)) : desde;
+  const ahora = Date.now();
+  const ventana = Math.min(ahora - inicioDatos, 24 * 3600000);
+  if (ventana < 600000) return null;
+  const corte = ahora - ventana;
+  let n = 0;
+  for (const e of cenaEventos) {
+    if (e.tipoEntradaId !== tipoId || Date.parse(e.fecha) < corte) continue;
+    if (e.evento === 'BAJA_STOCK' || e.evento === 'AGOTADA') n += e.antes - e.despues;
+  }
+  return { n, completa: ventana >= 24 * 3600000 - 1000, horas: Math.floor(ventana / 3600000) };
+}
+
+function etiquetaEstado(c) {
+  if (c.estado !== 'NO_SE_PUEDE_COMPRAR') return ESTADOS[c.estado];
+  const t = c.tipos.find((x) => x.estado === 'NO_SE_PUEDE_COMPRAR');
+  return `No se puede comprar · precio ${pesos(t ? t.precio : null)}`;
+}
+
+function tarjeta(c, evs) {
+  const ultimo = evs[0];
+  const tipos = c.tipos.map((t) => {
+    const v = vendidas24h(evs, t.id);
+    const total = t.cantidadTotal === null ? '' : ` de ${cant(t.cantidadTotal)}`;
+    let vendidasTxt = 'Vendidas en 24 h: sin dato';
+    if (v) vendidasTxt = v.completa ? `Vendidas en 24 h: ${cant(v.n)}` : `Vendidas desde hace ${Math.max(v.horas, 1)} h (hay datos desde entonces): ${cant(v.n)}`;
+    return h('li', { class: 'tipo' },
+      h('div', { class: 'fila' }, h('span', { class: 'nombre', text: t.tipo ?? 'Sin nombre' }), h('span', { class: 'chip ' + t.estado, text: ESTADOS[t.estado] })),
+      h('div', { class: 'fila' }, h('span', { text: `Disponibles: ${cant(t.cantidadDisponible)}${t.cantidadDisponible === null ? '' : total}` }), h('span', { text: pesos(t.precio) })),
+      h('div', { class: 'meta', text: vendidasTxt }));
+  });
+  const desactualizada = Date.now() - Date.parse(c.ultimaLectura) > MIN_STALE * 60000;
+  return h('article', { class: 'tarjeta', 'data-estado': c.estado, 'data-id': c.id },
+    h('h2', { text: c.nombre }),
+    h('p', { class: 'meta', text: `${fechaCena(c)} · ${c.lugar ?? 'Lugar sin dato'}` }),
+    h('span', { class: 'chip ' + c.estado, text: etiquetaEstado(c) }),
+    desactualizada ? h('p', { class: 'stale', text: `No se pudo leer esta cena en la última revisión. Dato de ${hace(c.ultimaLectura)}.` }) : null,
+    h('ul', { class: 'tipos' }, tipos.length ? tipos : h('li', { class: 'meta', text: 'Sin tipos de entrada publicados' })),
+    h('p', { class: 'cambio' }, ultimo ? [textoEvento(ultimo), ' ', h('span', { text: `· ${hace(ultimo.fecha)}` })] : h('span', { text: 'Sin cambios registrados' })),
+    evs.length ? h('details', {}, h('summary', { text: `Historial (${evs.length})` }),
+      h('ul', { class: 'historial' }, evs.slice(0, 100).map((e) => h('li', {}, textoEvento(e), ' ', h('span', { text: `· ${hace(e.fecha)}` }))))) : null,
+    h('a', { class: 'comprar', href: c.link, target: '_blank', rel: 'noopener noreferrer', text: 'Ir a comprar' }));
+}
+
+function render() {
+  const grilla = $('grilla');
+  const abiertas = new Set([...grilla.querySelectorAll('details[open]')].map((d) => d.closest('article').dataset.id));
+  grilla.replaceChildren();
+  if (!estado.datos) return;
+  const porCena = eventosPorCena();
+  const pasa = FILTROS.find((f) => f[0] === estado.filtro)[2];
+  const q = sinAcentos(estado.busqueda.trim());
+  const comprable = (c) => c.estado === 'EN_VENTA' || c.estado === 'POCAS';
+  const ultimoCambio = (c) => { const e = porCena.get(c.id); return e ? Date.parse(e[0].fecha) : 0; };
+  const lista = estado.datos.cenas
+    .filter((c) => pasa(c) && (!q || sinAcentos(c.nombre).includes(q)))
+    .sort((a, b) => (comprable(b) - comprable(a)) || (ultimoCambio(b) - ultimoCambio(a)) || (Date.parse(a.fechaInicio) - Date.parse(b.fechaInicio)));
+  if (!lista.length) grilla.append(h('p', { class: 'vacio', text: 'No hay cenas que coincidan.' }));
+  for (const c of lista) {
+    const t = tarjeta(c, porCena.get(c.id) ?? []);
+    if (abiertas.has(String(c.id))) t.querySelector('details').open = true;
+    grilla.append(t);
+  }
+}
+
+function renderCabecera() {
+  if (!estado.datos) return;
+  const min = (Date.now() - Date.parse(estado.datos.ultimaRevision)) / 60000;
+  $('revision').textContent = `Última revisión ${hace(estado.datos.ultimaRevision)}`;
+  $('aviso').replaceChildren(min > MIN_STALE ? h('p', { class: 'aviso', role: 'alert', text: `Atención: la última revisión tiene más de ${MIN_STALE} minutos. Los datos pueden estar desactualizados.` }) : '');
+}
+
+function renderFiltros() {
+  $('filtros').replaceChildren(...FILTROS.map(([k, label]) => {
+    const b = h('button', { type: 'button', 'aria-pressed': String(estado.filtro === k), text: label });
+    b.addEventListener('click', () => { estado.filtro = k; renderFiltros(); render(); });
+    return b;
+  }));
+}
+
+async function cargar() {
+  try {
+    const r = await fetch('data/cenas.json', { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status);
+    estado.datos = await r.json();
+  } catch {
+    if (!estado.datos) $('revision').textContent = 'Todavía no hay datos publicados.';
+    return;
+  }
+  try {
+    const r = await fetch('data/historial.json', { cache: 'no-store' });
+    const j = r.ok ? await r.json() : [];
+    estado.historial = Array.isArray(j) ? j : [];
+  } catch {
+    estado.historial = [];
+  }
+  renderCabecera();
+  render();
+}
+
+$('buscador').addEventListener('input', (e) => { estado.busqueda = e.target.value; render(); });
+renderFiltros();
+cargar();
+setInterval(cargar, 5 * 60000);
+setInterval(() => { renderCabecera(); render(); }, 60000);
+</script>
+</body>
+</html>
