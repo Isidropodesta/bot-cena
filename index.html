@@ -318,6 +318,9 @@ async function cargar() {
   }
 }
 
+const botonTodas = $('todas');
+pintarCampana(botonTodas, 'todas');
+botonTodas.addEventListener('click', () => { alternarAviso('todas'); setTimeout(() => pintarCampana(botonTodas, 'todas'), 0); });
 $('buscador').addEventListener('input', (e) => { estado.busqueda = e.target.value; render(); });
 renderFiltros();
 cargar();
