@@ -1,20 +1,10 @@
 import { timingSafeEqual } from 'node:crypto';
-import { suscribir, desuscribir, suscripcionesDe } from '../lib/db.mjs';
+import { suscribir, desuscribir, suscripcionesDe, todasLasCenas } from '../lib/db.mjs';
 import { telegram, botonComprar } from '../lib/telegram.mjs';
-import { pesos } from '../lib/avisos.mjs';
 
 const panel = () => process.env.PANEL_URL;
-const CACHE_MS = 60000;
-let cache = { cuando: 0, cenas: null };
 
-async function cenas() {
-  if (cache.cenas && Date.now() - cache.cuando < CACHE_MS) return cache.cenas;
-  const res = await fetch(`${panel()}/data/cenas.json?t=${Date.now()}`, { signal: AbortSignal.timeout(8000) });
-  if (!res.ok) throw new Error(`cenas.json -> HTTP ${res.status}`);
-  const j = await res.json();
-  cache = { cuando: Date.now(), cenas: new Map(j.cenas.map((c) => [String(c.id), c])) };
-  return cache.cenas;
-}
+const pesos = (n) => '$' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
 const iguales = (a, b) => typeof a === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
@@ -50,7 +40,7 @@ async function empezar(chatId, payload = '') {
   }
   if (alta) {
     const id = String(Number(alta[1]));
-    const c = (await cenas()).get(id);
+    const c = (await todasLasCenas()).get(id);
     if (!c) return noExiste(chatId);
     await suscribir(chatId, id);
     return enviar(chatId, `Listo ✅ Te aviso cualquier cambio en ${c.nombre}\n\nAhora:\n${estadoActual(c)}`, { reply_markup: botonComprar(c.link) });
@@ -58,7 +48,7 @@ async function empezar(chatId, payload = '') {
   if (baja) {
     const id = baja[1] === 'todas' ? 'todas' : String(Number(baja[1]));
     await desuscribir(chatId, id);
-    const nombre = id === 'todas' ? 'las cenas en general' : (await cenas().catch(() => new Map())).get(id)?.nombre ?? 'esa cena';
+    const nombre = id === 'todas' ? 'las cenas en general' : (await todasLasCenas().catch(() => new Map())).get(id)?.nombre ?? 'esa cena';
     return enviar(chatId, `Listo, ya no te aviso de ${nombre}.`);
   }
   return saludo(chatId);
@@ -67,7 +57,7 @@ async function empezar(chatId, payload = '') {
 async function avisos(chatId) {
   const mias = await suscripcionesDe(chatId);
   if (!mias.length) return enviar(chatId, `No tenés avisos activos. Tocá la campanita 🔔 de una cena en el panel: ${panel()}`);
-  const porId = await cenas().catch(() => new Map());
+  const porId = await todasLasCenas().catch(() => new Map());
   for (const s of mias) {
     const nombre = s.cena_id === 'todas' ? 'Todas las cenas (incluye las nuevas)' : porId.get(s.cena_id)?.nombre ?? `Cena ${s.cena_id}`;
     await enviar(chatId, nombre, { reply_markup: { inline_keyboard: [[{ text: 'Dejar de avisar', callback_data: `x${s.cena_id}` }]] } });

@@ -1,5 +1,5 @@
 const HORA = 3600000;
-const VENTANA_EVENTOS_MS = 6 * HORA;
+export const VENTANA_EVENTOS_MS = 6 * HORA;
 export const VENTANA_ENVIOS_MS = 12 * HORA;
 const PAUSA_ENTRE_ENVIOS_MS = 45;
 

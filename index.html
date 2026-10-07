@@ -83,6 +83,11 @@ summary { cursor: pointer; color: var(--acento); }
 </div>
 <script>
 const MIN_STALE = 40;
+const MIN_ATRASO = 2;
+const REFRESCO_MS = 20000;
+const MAX_HISTORIAL = 3000;
+const SB_URL = 'https://qslwxcosxxusoxckgpuw.supabase.co/rest/v1';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzbHd4Y29zeHh1c294Y2tncHV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzMzcyNjAsImV4cCI6MjEwNjkxMzI2MH0.0vsljlyMlX-oVxSPF6c6cUrDc7gzb-c1UyEa4GtNMr4';
 const ESTADOS = {
   EN_VENTA: 'En venta', POCAS: 'Pocas entradas', AGOTADA: 'Agotada',
   NO_SE_PUEDE_COMPRAR: 'No se puede comprar', NO_HABILITADA: 'No habilitada', SIN_DATO: 'Sin dato',
@@ -256,11 +261,25 @@ function render() {
   }
 }
 
+const sbGet = async (ruta) => {
+  const r = await fetch(`${SB_URL}/${ruta}`, { headers: { apikey: SB_KEY, authorization: `Bearer ${SB_KEY}` }, cache: 'no-store' });
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+};
+
+function haceSeg(iso) {
+  const s = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 1000));
+  return s < 60 ? `hace ${s} s` : hace(iso);
+}
+
 function renderCabecera() {
   if (!estado.datos) return;
   const min = (Date.now() - Date.parse(estado.datos.ultimaRevision)) / 60000;
-  $('revision').textContent = `Última revisión ${hace(estado.datos.ultimaRevision)}`;
-  $('aviso').replaceChildren(min > MIN_STALE ? h('p', { class: 'aviso', role: 'alert', text: `Atención: la última revisión tiene más de ${MIN_STALE} minutos. Los datos pueden estar desactualizados.` }) : '');
+  $('revision').textContent = `Actualizado ${haceSeg(estado.datos.ultimaRevision)}`;
+  const hayAviso = min > MIN_ATRASO;
+  if (hayAviso === estado.conAviso) return;
+  estado.conAviso = hayAviso;
+  $('aviso').replaceChildren(hayAviso ? h('p', { class: 'aviso', role: 'alert', text: `Atención: la última revisión tiene más de ${MIN_ATRASO} minutos. Los datos pueden estar desactualizados.` }) : '');
 }
 
 function renderFiltros() {
@@ -272,33 +291,40 @@ function renderFiltros() {
 }
 
 async function cargar() {
+  if (estado.cargando) return;
+  estado.cargando = true;
   try {
-    const r = await fetch('data/cenas.json', { cache: 'no-store' });
-    if (!r.ok) throw new Error(r.status);
-    estado.datos = await r.json();
+    const rutaHistorial = estado.ultimaFechaHist
+      ? `historial?select=datos&order=fecha.desc&fecha=gte.${encodeURIComponent(estado.ultimaFechaHist)}`
+      : `historial?select=datos&order=fecha.desc&limit=${MAX_HISTORIAL}`;
+    const [cenas, rev, nuevos] = await Promise.all([sbGet('cenas?select=datos'), sbGet('revision?select=ultima_revision,desde'), sbGet(rutaHistorial)]);
+    if (!rev.length) {
+      if (!estado.datos) $('revision').textContent = 'Todavía no hay datos publicados.';
+      return;
+    }
+    const datos = { ultimaRevision: rev[0].ultima_revision, desde: rev[0].desde, cenas: cenas.map((f) => f.datos) };
+    const porId = new Map(estado.historial.map((e) => [e.id, e]));
+    for (const f of nuevos) porId.set(f.datos.id, f.datos);
+    const historial = [...porId.values()].sort((a, b) => Date.parse(b.fecha) - Date.parse(a.fecha)).slice(0, MAX_HISTORIAL);
+    const firma = JSON.stringify([datos.cenas, historial.length, historial[0]?.id]);
+    const cambio = firma !== estado.firma;
+    Object.assign(estado, { datos, historial, firma, ultimaFechaHist: historial[0]?.fecha ?? estado.ultimaFechaHist });
+    renderCabecera();
+    if (cambio) render();
   } catch {
-    if (!estado.datos) $('revision').textContent = 'Todavía no hay datos publicados.';
-    return;
+    if (!estado.datos) $('revision').textContent = 'No se pudieron cargar los datos. Reintentando…';
+  } finally {
+    estado.cargando = false;
   }
-  try {
-    const r = await fetch('data/historial.json', { cache: 'no-store' });
-    const j = r.ok ? await r.json() : [];
-    estado.historial = Array.isArray(j) ? j : [];
-  } catch {
-    estado.historial = [];
-  }
-  renderCabecera();
-  render();
 }
 
-const botonTodas = $('todas');
-pintarCampana(botonTodas, 'todas');
-botonTodas.addEventListener('click', () => { alternarAviso('todas'); setTimeout(() => pintarCampana(botonTodas, 'todas'), 0); });
 $('buscador').addEventListener('input', (e) => { estado.busqueda = e.target.value; render(); });
 renderFiltros();
 cargar();
-setInterval(cargar, 5 * 60000);
-setInterval(() => { renderCabecera(); render(); }, 60000);
+setInterval(cargar, REFRESCO_MS);
+setInterval(renderCabecera, 1000);
+setInterval(render, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) cargar(); });
 </script>
 </body>
 </html>
