@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
-import { suscribir, desuscribir, suscripcionesDe, todasLasCenas } from '../lib/db.mjs';
+import { suscribir, desuscribir, suscripcionesDe, todasLasCenas, registrarUsuario, listarUsuarios, todasLasSuscripciones } from '../lib/db.mjs';
 import { telegram, botonComprar } from '../lib/telegram.mjs';
 
 const panel = () => process.env.PANEL_URL;
@@ -68,6 +68,33 @@ async function avisos(chatId) {
   }
 }
 
+const MAX_MENSAJE = 3500;
+
+async function usuarios(chatId) {
+  const [lista, subs] = await Promise.all([listarUsuarios(), todasLasSuscripciones()]);
+  const sigue = new Map();
+  for (const s of subs) {
+    const m = sigue.get(s.chat_id) ?? { todas: false, cenas: 0 };
+    if (s.cena_id === 'todas') m.todas = true;
+    else m.cenas++;
+    sigue.set(s.chat_id, m);
+  }
+  const fecha = new Intl.DateTimeFormat('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+  const lineas = lista.map((u) => {
+    const m = sigue.get(u.chat_id) ?? { todas: false, cenas: 0 };
+    const cenas = m.todas ? 'todas' : `${m.cenas} ${m.cenas === 1 ? 'cena' : 'cenas'}`;
+    return `${u.nombre}${u.usuario ? ` ${u.usuario}` : ''} · entró ${fecha.format(new Date(u.primera_vez))} · sigue ${cenas}`;
+  });
+  const partes = [];
+  let actual = `Usuarios: ${lista.length}`;
+  for (const l of lineas) {
+    if (actual.length + l.length + 1 > MAX_MENSAJE) { partes.push(actual); actual = l; }
+    else actual += `\n${l}`;
+  }
+  partes.push(actual);
+  for (const p of partes) await enviar(chatId, p);
+}
+
 async function boton(cb) {
   const m = (cb.data ?? '').match(/^x(\d{1,12}|todas)$/);
   const chatId = cb.message?.chat?.id;
@@ -77,16 +104,31 @@ async function boton(cb) {
   await telegram('editMessageText', { chat_id: chatId, message_id: cb.message.message_id, text: `Listo, ya no te aviso de: ${cb.message.text.split('\n')[0]}`});
 }
 
+async function anotarUsuario(chat, from) {
+  if (chat?.type !== 'private' || !from) return;
+  try {
+    await registrarUsuario(chat.id, from);
+  } catch (e) {
+    console.error(e.message);
+  }
+}
+
 export async function procesar(update) {
-  if (update.callback_query) return boton(update.callback_query);
+  if (update.callback_query) {
+    const cb = update.callback_query;
+    await anotarUsuario(cb.message?.chat, cb.from);
+    return boton(cb);
+  }
   const msg = update.message;
   if (!msg || msg.chat?.type !== 'private') return;
+  await anotarUsuario(msg.chat, msg.from);
   const chatId = msg.chat.id;
   const texto = (msg.text ?? '').trim();
   try {
     const start = texto.match(/^\/start(?:@\w+)?(?:\s+(\S+))?$/);
     if (start) return await empezar(chatId, start[1]);
     if (/^\/avisos(?:@\w+)?$/.test(texto)) return await avisos(chatId);
+    if (/^\/usuarios(?:@\w+)?$/.test(texto) && String(chatId) === process.env.ADMIN_CHAT_ID) return await usuarios(chatId);
     return await saludo(chatId);
   } catch (e) {
     await enviar(chatId, 'Se me complicó algo de mi lado. Probá de nuevo en un rato.').catch(() => {});

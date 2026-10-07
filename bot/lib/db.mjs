@@ -30,3 +30,29 @@ export const desuscribir = (chatId, cenaId) =>
 export const suscripcionesDe = (chatId) => rest(`suscripciones?chat_id=eq.${chatId}&select=cena_id,creada_en&order=creada_en`);
 
 export const todasLasCenas = async () => new Map((await rest('cenas?select=datos')).map((f) => [String(f.datos.id), f.datos]));
+
+async function todas(ruta) {
+  const filas = [];
+  for (let desde = 0; ; desde += 1000) {
+    const lote = await rest(`${ruta}&limit=1000&offset=${desde}`);
+    filas.push(...lote);
+    if (lote.length < 1000) return filas;
+  }
+}
+
+// primera_vez no viaja en el pedido: el upsert solo actualiza las columnas enviadas, así que queda la de la primera vez.
+export const registrarUsuario = (chatId, from) =>
+  rest('usuarios?on_conflict=chat_id', {
+    metodo: 'POST',
+    cuerpo: {
+      chat_id: chatId,
+      nombre: [from.first_name, from.last_name].filter(Boolean).join(' '),
+      usuario: from.username ? `@${from.username}` : null,
+      ultima_vez: new Date().toISOString(),
+    },
+    extra: { prefer: 'resolution=merge-duplicates,return=minimal' },
+  });
+
+export const listarUsuarios = () => todas('usuarios?select=chat_id,nombre,usuario,primera_vez&order=primera_vez.desc,chat_id.desc');
+
+export const todasLasSuscripciones = () => todas('suscripciones?select=chat_id,cena_id&order=chat_id');
