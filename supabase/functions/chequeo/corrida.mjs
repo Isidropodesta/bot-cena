@@ -6,6 +6,7 @@ const LOCK_SEGUNDOS = 100;
 const PAUSA_POR_LIMITE_SEGUNDOS = 300;
 const REVISION_COMPLETA_CADA_MS = 5 * 60000;
 const REFRESCO_LECTURA_MS = 5 * 60000;
+const MAX_NUEVAS_POR_CORRIDA = 3;
 
 // jsonb no conserva el orden de las claves, así que se compara con las claves ordenadas.
 const canon = (v) => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v);
@@ -66,7 +67,20 @@ async function revisar({ db, egrefest, enviar, ahora, esperar, pausaDetalleMs, l
       const activas = new Set(ev.sales.map((s) => s.id));
       livianas.set(ev.id, normalizarCena(ev, ahora, prev.tipos.filter((t) => !activas.has(t.id))));
     }
-    const tras = previas.map((c) => livianas.get(c.id) ?? c);
+    // Una cena que aparece en el listado se lee de inmediato (hasta 3 por corrida; el resto, en las siguientes).
+    const nuevas = [];
+    for (const ev of lista.filter((e) => !prevPorId.has(e.id)).slice(0, MAX_NUEVAS_POR_CORRIDA)) {
+      await esperar(pausaDetalleMs);
+      try {
+        const det = await egrefest.detalle(ev.id);
+        r.pedidos++;
+        nuevas.push(normalizarCena(det, ahora));
+      } catch (e) {
+        if (e instanceof ErrorLimite) throw e;
+        log(JSON.stringify({ cena: ev.id, error: e.message }));
+      }
+    }
+    const tras = [...previas.map((c) => livianas.get(c.id) ?? c), ...nuevas];
     const eventos = comparar(previas, tras, ahora);
     r.eventos += eventos.length;
     await db.guardarRevision({ cenas: cambiadas(tras, previas), borrar: [], eventos, ahora, completa });

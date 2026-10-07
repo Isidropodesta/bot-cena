@@ -28,6 +28,29 @@ function calcularEstado(t, cenaHabilitada) {
   return 'EN_VENTA';
 }
 
+const esSimbolico = (precio) => precio !== null && precio <= PRECIO_MINIMO_REAL;
+
+// Lo que ve la persona: En venta / Agotada / Próximamente. "Quedan pocas" es solo una etiqueta dentro de En venta.
+// Los estados internos de cada tanda (y los eventos) no cambian.
+function calcularVista(tipos, cenaHabilitada) {
+  const enVenta = (t) => t.estado === 'EN_VENTA' || t.estado === 'POCAS';
+  const agotada = (t) => cenaHabilitada && (t.estadoOrigen === 'active' ? t.cantidadDisponible === 0 : /agot|sold/i.test(t.estadoOrigen ?? ''));
+  const vendibles = tipos.filter(enVenta);
+  const agotadas = tipos.filter((t) => !enVenta(t) && agotada(t));
+  const cargada = tipos.find((t) => !enVenta(t) && !agotada(t) && t.estado === 'NO_HABILITADA' && t.cantidadDisponible > 0);
+  const suma = (lista, campo) => (lista.some((t) => t[campo] !== null) ? lista.reduce((n, t) => n + (t[campo] ?? 0), 0) : null);
+  const estado = vendibles.length ? 'EN_VENTA' : agotadas.length ? 'AGOTADA' : 'PROXIMAMENTE';
+  const disponibles = suma(vendibles, 'cantidadDisponible');
+  return {
+    estado,
+    pocas: estado === 'EN_VENTA' && disponibles !== null && disponibles <= UMBRAL_POCAS,
+    disponibles,
+    total: suma(vendibles, 'cantidadTotal'),
+    tandaId: (vendibles[0] ?? agotadas[agotadas.length - 1])?.id ?? null,
+    proxima: cargada ? { id: cargada.id, tipo: cargada.tipo, cantidad: cargada.cantidadTotal ?? cargada.cantidadDisponible, precio: esSimbolico(cargada.precio) ? null : cargada.precio } : null,
+  };
+}
+
 // `retenidos` son fases de la lectura anterior que el listado no trae (el listado solo incluye las activas):
 // se conservan con su estado recalculado hasta la próxima revisión completa.
 export function normalizarCena(ev, ahora, retenidos = []) {
@@ -62,12 +85,11 @@ export function normalizarCena(ev, ahora, retenidos = []) {
     link: linkCena(ev.id),
     estadoOrigen: ev.status ?? null,
     estado,
+    vista: calcularVista(tipos, cenaHabilitada),
     tipos,
     ultimaLectura: ahora,
   };
 }
-
-const esSimbolico = (precio) => precio !== null && precio <= PRECIO_MINIMO_REAL;
 
 export function comparar(previas, actuales, ahora) {
   const eventos = [];

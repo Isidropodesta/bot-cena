@@ -8,21 +8,26 @@ const pesos = (n) => '$' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
 const iguales = (a, b) => typeof a === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
+const ESTADOS = { EN_VENTA: 'En venta', AGOTADA: 'Agotada', PROXIMAMENTE: 'Próximamente' };
+
 function estadoActual(c) {
-  if (!c.tipos.length) return 'Todavía no tiene entradas cargadas.';
-  return c.tipos.map((t) => {
-    const n = t.cantidadDisponible;
-    const precio = t.precio != null ? ` a ${pesos(t.precio)}` : '';
+  const v = c.vista;
+  const cabecera = `Estado: ${ESTADOS[v.estado]}${v.pocas ? ' · Quedan pocas' : ''}`;
+  if (!c.tipos.length) return `${cabecera}\nTodavía no tiene entradas cargadas.`;
+  const lineas = c.tipos.map((t) => {
     const nombre = t.tipo ?? 'Entrada';
+    const de = t.cantidadTotal != null ? ` de ${t.cantidadTotal}` : '';
+    const precio = t.precio != null ? ` a ${pesos(t.precio)}` : '';
     switch (t.estado) {
       case 'EN_VENTA':
-      case 'POCAS': return `• ${nombre}: ${n} disponibles${precio} · se puede comprar`;
-      case 'NO_SE_PUEDE_COMPRAR': return `• ${nombre}: ${n} cargadas${precio} · todavía no se puede comprar`;
+      case 'POCAS': return `• ${nombre}: ${t.cantidadDisponible} disponibles${de}${precio}`;
       case 'AGOTADA': return `• ${nombre}: agotada`;
-      case 'NO_HABILITADA': return `• ${nombre}: la venta no está habilitada`;
+      case 'NO_HABILITADA':
+      case 'NO_SE_PUEDE_COMPRAR': return `• ${nombre}: ${t.cantidadTotal ?? t.cantidadDisponible} entradas cargadas, todavía sin habilitar`;
       default: return `• ${nombre}: sin dato`;
     }
-  }).join('\n');
+  });
+  return [cabecera, ...lineas].join('\n');
 }
 
 const enviar = (chatId, text, extra = {}) => telegram('sendMessage', { chat_id: chatId, text, link_preview_options: { is_disabled: true }, ...extra });
@@ -43,7 +48,7 @@ async function empezar(chatId, payload = '') {
     const c = (await todasLasCenas()).get(id);
     if (!c) return noExiste(chatId);
     await suscribir(chatId, id);
-    return enviar(chatId, `Listo ✅ Te aviso cualquier cambio en ${c.nombre}\n\nAhora:\n${estadoActual(c)}`, { reply_markup: botonComprar(c.link) });
+    return enviar(chatId, `Listo ✅ Te aviso cualquier cambio en ${c.nombre}\n\n${estadoActual(c)}`, { reply_markup: botonComprar(c.link) });
   }
   if (baja) {
     const id = baja[1] === 'todas' ? 'todas' : String(Number(baja[1]));
@@ -59,7 +64,8 @@ async function avisos(chatId) {
   if (!mias.length) return enviar(chatId, `No tenés avisos activos. Tocá la campanita 🔔 de una cena en el panel: ${panel()}`);
   const porId = await todasLasCenas().catch(() => new Map());
   for (const s of mias) {
-    const nombre = s.cena_id === 'todas' ? 'Todas las cenas (incluye las nuevas)' : porId.get(s.cena_id)?.nombre ?? `Cena ${s.cena_id}`;
+    const cena = porId.get(s.cena_id);
+    const nombre = s.cena_id === 'todas' ? 'Todas las cenas (incluye las nuevas)' : cena ? `${cena.nombre}\n${ESTADOS[cena.vista.estado]}` : `Cena ${s.cena_id}`;
     await enviar(chatId, nombre, { reply_markup: { inline_keyboard: [[{ text: 'Dejar de avisar', callback_data: `x${s.cena_id}` }]] } });
   }
 }
@@ -70,7 +76,7 @@ async function boton(cb) {
   if (!m || !chatId) return telegram('answerCallbackQuery', { callback_query_id: cb.id });
   await desuscribir(chatId, m[1]);
   await telegram('answerCallbackQuery', { callback_query_id: cb.id, text: 'Listo, ya no te aviso' });
-  await telegram('editMessageText', { chat_id: chatId, message_id: cb.message.message_id, text: `Listo, ya no te aviso de: ${cb.message.text}` });
+  await telegram('editMessageText', { chat_id: chatId, message_id: cb.message.message_id, text: `Listo, ya no te aviso de: ${cb.message.text.split('\n')[0]}`});
 }
 
 export async function procesar(update) {
