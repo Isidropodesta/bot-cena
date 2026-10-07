@@ -61,6 +61,11 @@ summary { cursor: pointer; color: var(--acento); }
 .historial li { color: var(--texto); overflow-wrap: anywhere; }
 .historial li span { color: var(--suave); }
 .comprar { margin-top: auto; text-align: center; text-decoration: none; background: var(--acento); color: #fff; padding: 10px 12px; border-radius: 8px; font-weight: 700; }
+.cabecera-tarjeta { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; }
+.cabecera-tarjeta h2 { flex: 1; min-width: 0; }
+.campana { flex: none; font-size: .82rem; font-weight: 700; text-decoration: none; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--borde); background: var(--card); color: var(--texto); white-space: nowrap; }
+.campana[aria-pressed="true"] { background: var(--acento); border-color: var(--acento); color: #fff; }
+.campana.todas { display: inline-block; white-space: normal; font-size: .9rem; padding: 8px 14px; margin-top: 12px; }
 .vacio { color: var(--suave); text-align: center; padding: 40px 0; grid-column: 1 / -1; }
 </style>
 </head>
@@ -69,6 +74,7 @@ summary { cursor: pointer; color: var(--acento); }
   <h1>Cenas de egresados</h1>
   <p class="revision" id="revision">Cargando…</p>
   <div id="aviso"></div>
+  <a class="campana todas" id="todas" target="_blank" rel="noopener noreferrer"></a>
   <div class="barra">
     <div class="filtros" id="filtros"></div>
     <input class="buscador" id="buscador" type="search" placeholder="Buscar por nombre" aria-label="Buscar por nombre">
@@ -87,6 +93,17 @@ const FILTROS = [
   ['agotadas', 'Agotadas', (c) => c.estado === 'AGOTADA'],
   ['nocomprar', 'No se puede comprar', (c) => c.estado === 'NO_SE_PUEDE_COMPRAR'],
 ];
+const BOT = 'https://t.me/CenaEgresadosBot';
+const CLAVE_AVISOS = 'avisos-telegram';
+const avisos = (() => {
+  try {
+    const j = JSON.parse(localStorage.getItem(CLAVE_AVISOS));
+    return { todas: j?.todas === true, cenas: Array.isArray(j?.cenas) ? j.cenas.map(String) : [] };
+  } catch {
+    return { todas: false, cenas: [] };
+  }
+})();
+const guardarAvisos = () => { try { localStorage.setItem(CLAVE_AVISOS, JSON.stringify(avisos)); } catch {} };
 const estado = { datos: null, historial: [], filtro: 'todas', busqueda: '' };
 
 const $ = (id) => document.getElementById(id);
@@ -165,6 +182,34 @@ function etiquetaEstado(c) {
   return `No se puede comprar · precio ${pesos(t ? t.precio : null)}`;
 }
 
+function pintarCampana(a, id, c) {
+  const activa = id === 'todas' ? avisos.todas : avisos.cenas.includes(id);
+  const payload = (activa ? 'x' : id === 'todas' ? '' : 'c') + id;
+  a.href = `${BOT}?start=${payload}`;
+  a.setAttribute('aria-pressed', String(activa));
+  if (id === 'todas') {
+    a.textContent = activa ? '🔔 Avisos de todas activados (tocá para quitar)' : '🔔 Avisarme de todas (incluye cenas nuevas)';
+  } else {
+    a.textContent = activa ? '🔔 Activado' : '🔔 Avisarme';
+    a.setAttribute('aria-label', activa ? `Dejar de recibir avisos de ${c.nombre}` : `Avisarme de ${c.nombre}`);
+  }
+}
+
+function alternarAviso(id) {
+  if (id === 'todas') avisos.todas = !avisos.todas;
+  else avisos.cenas = avisos.cenas.includes(id) ? avisos.cenas.filter((x) => x !== id) : [...avisos.cenas, id];
+  guardarAvisos();
+}
+
+function campana(c) {
+  const id = String(c.id);
+  if (!/^[0-9]+$/.test(id)) return null;
+  const a = h('a', { class: 'campana', target: '_blank', rel: 'noopener noreferrer' });
+  pintarCampana(a, id, c);
+  a.addEventListener('click', () => { alternarAviso(id); setTimeout(() => pintarCampana(a, id, c), 0); });
+  return a;
+}
+
 function tarjeta(c, evs) {
   const ultimo = evs[0];
   const tipos = c.tipos.map((t) => {
@@ -179,7 +224,7 @@ function tarjeta(c, evs) {
   });
   const desactualizada = Date.now() - Date.parse(c.ultimaLectura) > MIN_STALE * 60000;
   return h('article', { class: 'tarjeta', 'data-estado': c.estado, 'data-id': c.id },
-    h('h2', { text: c.nombre }),
+    h('div', { class: 'cabecera-tarjeta' }, h('h2', { text: c.nombre }), campana(c)),
     h('p', { class: 'meta', text: `${fechaCena(c)} · ${c.lugar ?? 'Lugar sin dato'}` }),
     h('span', { class: 'chip ' + c.estado, text: etiquetaEstado(c) }),
     desactualizada ? h('p', { class: 'stale', text: `No se pudo leer esta cena en la última revisión. Dato de ${hace(c.ultimaLectura)}.` }) : null,
@@ -246,6 +291,9 @@ async function cargar() {
   render();
 }
 
+const botonTodas = $('todas');
+pintarCampana(botonTodas, 'todas');
+botonTodas.addEventListener('click', () => { alternarAviso('todas'); setTimeout(() => pintarCampana(botonTodas, 'todas'), 0); });
 $('buscador').addEventListener('input', (e) => { estado.busqueda = e.target.value; render(); });
 renderFiltros();
 cargar();

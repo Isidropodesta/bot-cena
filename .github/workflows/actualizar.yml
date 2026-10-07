@@ -67,3 +67,12 @@ jobs:
 
       - id: deploy
         uses: actions/deploy-pages@v5
+
+      - name: Avisar por Telegram
+        if: ${{ !cancelled() && steps.deploy.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: node bot/avisar.mjs

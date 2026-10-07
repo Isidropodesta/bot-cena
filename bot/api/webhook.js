@@ -1,0 +1,113 @@
+import { timingSafeEqual } from 'node:crypto';
+import { suscribir, desuscribir, suscripcionesDe } from '../lib/db.mjs';
+import { telegram, botonComprar } from '../lib/telegram.mjs';
+import { pesos } from '../lib/avisos.mjs';
+
+const panel = () => process.env.PANEL_URL;
+const CACHE_MS = 60000;
+let cache = { cuando: 0, cenas: null };
+
+async function cenas() {
+  if (cache.cenas && Date.now() - cache.cuando < CACHE_MS) return cache.cenas;
+  const res = await fetch(`${panel()}/data/cenas.json?t=${Date.now()}`, { signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(`cenas.json -> HTTP ${res.status}`);
+  const j = await res.json();
+  cache = { cuando: Date.now(), cenas: new Map(j.cenas.map((c) => [String(c.id), c])) };
+  return cache.cenas;
+}
+
+const iguales = (a, b) => typeof a === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+
+function estadoActual(c) {
+  if (!c.tipos.length) return 'Todavía no tiene entradas cargadas.';
+  return c.tipos.map((t) => {
+    const n = t.cantidadDisponible;
+    const precio = t.precio != null ? ` a ${pesos(t.precio)}` : '';
+    const nombre = t.tipo ?? 'Entrada';
+    switch (t.estado) {
+      case 'EN_VENTA':
+      case 'POCAS': return `• ${nombre}: ${n} disponibles${precio} · se puede comprar`;
+      case 'NO_SE_PUEDE_COMPRAR': return `• ${nombre}: ${n} cargadas${precio} · todavía no se puede comprar`;
+      case 'AGOTADA': return `• ${nombre}: agotada`;
+      case 'NO_HABILITADA': return `• ${nombre}: la venta no está habilitada`;
+      default: return `• ${nombre}: sin dato`;
+    }
+  }).join('\n');
+}
+
+const enviar = (chatId, text, extra = {}) => telegram('sendMessage', { chat_id: chatId, text, link_preview_options: { is_disabled: true }, ...extra });
+
+const saludo = (chatId) => enviar(chatId, `¡Hola! Te aviso cuando hay entradas, se agotan, reponen o cambian de precio en las cenas de egresados.\n\nElegí tus cenas tocando la campanita 🔔 en el panel: ${panel()}\n\nCon /avisos ves y quitás las que seguís.`);
+
+const noExiste = (chatId) => enviar(chatId, `No encuentro esa cena, capaz ya no está publicada. Elegí otra desde el panel: ${panel()}`);
+
+async function empezar(chatId, payload = '') {
+  const alta = payload.match(/^c(\d{1,12})$/);
+  const baja = payload.match(/^x(\d{1,12}|todas)$/);
+  if (payload === 'todas') {
+    await suscribir(chatId, 'todas');
+    return enviar(chatId, 'Listo ✅ Te aviso de todas las cenas, incluidas las nuevas. Para dejar de recibir avisos usá /avisos.');
+  }
+  if (alta) {
+    const id = String(Number(alta[1]));
+    const c = (await cenas()).get(id);
+    if (!c) return noExiste(chatId);
+    await suscribir(chatId, id);
+    return enviar(chatId, `Listo ✅ Te aviso cualquier cambio en ${c.nombre}\n\nAhora:\n${estadoActual(c)}`, { reply_markup: botonComprar(c.link) });
+  }
+  if (baja) {
+    const id = baja[1] === 'todas' ? 'todas' : String(Number(baja[1]));
+    await desuscribir(chatId, id);
+    const nombre = id === 'todas' ? 'las cenas en general' : (await cenas().catch(() => new Map())).get(id)?.nombre ?? 'esa cena';
+    return enviar(chatId, `Listo, ya no te aviso de ${nombre}.`);
+  }
+  return saludo(chatId);
+}
+
+async function avisos(chatId) {
+  const mias = await suscripcionesDe(chatId);
+  if (!mias.length) return enviar(chatId, `No tenés avisos activos. Tocá la campanita 🔔 de una cena en el panel: ${panel()}`);
+  const porId = await cenas().catch(() => new Map());
+  for (const s of mias) {
+    const nombre = s.cena_id === 'todas' ? 'Todas las cenas (incluye las nuevas)' : porId.get(s.cena_id)?.nombre ?? `Cena ${s.cena_id}`;
+    await enviar(chatId, nombre, { reply_markup: { inline_keyboard: [[{ text: 'Dejar de avisar', callback_data: `x${s.cena_id}` }]] } });
+  }
+}
+
+async function boton(cb) {
+  const m = (cb.data ?? '').match(/^x(\d{1,12}|todas)$/);
+  const chatId = cb.message?.chat?.id;
+  if (!m || !chatId) return telegram('answerCallbackQuery', { callback_query_id: cb.id });
+  await desuscribir(chatId, m[1]);
+  await telegram('answerCallbackQuery', { callback_query_id: cb.id, text: 'Listo, ya no te aviso' });
+  await telegram('editMessageText', { chat_id: chatId, message_id: cb.message.message_id, text: `Listo, ya no te aviso de: ${cb.message.text}` });
+}
+
+export async function procesar(update) {
+  if (update.callback_query) return boton(update.callback_query);
+  const msg = update.message;
+  if (!msg || msg.chat?.type !== 'private') return;
+  const chatId = msg.chat.id;
+  const texto = (msg.text ?? '').trim();
+  try {
+    const start = texto.match(/^\/start(?:@\w+)?(?:\s+(\S+))?$/);
+    if (start) return await empezar(chatId, start[1]);
+    if (/^\/avisos(?:@\w+)?$/.test(texto)) return await avisos(chatId);
+    return await saludo(chatId);
+  } catch (e) {
+    await enviar(chatId, 'Se me complicó algo de mi lado. Probá de nuevo en un rato.').catch(() => {});
+    throw e;
+  }
+}
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+  const esperado = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (!esperado || !iguales(req.headers['x-telegram-bot-api-secret-token'], esperado)) return res.status(401).end();
+  try {
+    await procesar(req.body ?? {});
+  } catch (e) {
+    console.error(e.message);
+  }
+  res.status(200).end();
+}
