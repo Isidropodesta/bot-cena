@@ -41,8 +41,9 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 .pildora[aria-pressed="true"] { background: var(--champagne); color: var(--malbec); border-color: var(--champagne); }
 .aviso { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: rgba(246, 231, 200, .12); border: 1px solid var(--champagne); font-weight: 600; }
 h1 { margin: 14px 0 8px; font: 900 clamp(52px, 14vw, 96px)/.9 var(--display); letter-spacing: .005em; color: var(--champagne); }
-.subtitulo { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
-.resumen { margin: 0; font-size: .9rem; color: var(--rosado); }
+.subtitulo { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 16px; }
+.subtitulo .pildora { flex: none; }
+.resumen { margin: 0; flex: 1 1 auto; min-width: 0; font-size: .84rem; color: var(--rosado); }
 .resumen b { color: var(--champagne); font: 800 1.35rem/1 var(--display); }
 
 .layout { display: flex; flex-direction: column; gap: 14px; }
