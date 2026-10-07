@@ -18,13 +18,11 @@ function estadoActual(c) {
     const nombre = t.tipo ?? 'Entrada';
     const de = t.cantidadTotal != null ? ` de ${t.cantidadTotal}` : '';
     const precio = t.precio != null ? ` a ${pesos(t.precio)}` : '';
-    switch (t.estado) {
-      case 'EN_VENTA':
-      case 'POCAS': return `• ${nombre}: ${t.cantidadDisponible} disponibles${de}${precio}`;
+    switch (t.fase) {
+      case 'EN_VENTA': return `• ${nombre}: ${t.cantidadDisponible} ${t.cantidadDisponible === 1 ? 'disponible' : 'disponibles'}${de}${precio}`;
       case 'AGOTADA': return `• ${nombre}: agotada`;
-      case 'NO_HABILITADA':
-      case 'NO_SE_PUEDE_COMPRAR': return `• ${nombre}: ${t.cantidadTotal ?? t.cantidadDisponible} entradas cargadas, todavía sin habilitar`;
-      default: return `• ${nombre}: sin dato`;
+      case 'PROXIMA': return `• ${nombre}: ${t.cantidadTotal} ${t.cantidadTotal === 1 ? 'entrada cargada' : 'entradas cargadas'}${precio}, todavía sin habilitar`;
+      default: return `• ${nombre}: cargada, todavía sin cantidad de entradas`;
     }
   });
   return [cabecera, ...lineas].join('\n');

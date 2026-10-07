@@ -32,22 +32,36 @@ const esSimbolico = (precio) => precio !== null && precio <= PRECIO_MINIMO_REAL;
 
 // Lo que ve la persona: En venta / Agotada / Próximamente. "Quedan pocas" es solo una etiqueta dentro de En venta.
 // Los estados internos de cada tanda (y los eventos) no cambian.
+const porOrden = (a, b) => (a.prioridad ?? 0) - (b.prioridad ?? 0) || a.id - b.id;
+
+// Cómo se muestra cada tanda: EN_VENTA, AGOTADA, PROXIMA (todavía no sale, con cantidad real)
+// o SIN_CANTIDAD (cargada con stock <= 1 o con precio simbólico: no hay números reales para mostrar).
+function faseTanda(t) {
+  if (t.estado === 'EN_VENTA' || t.estado === 'POCAS') return 'EN_VENTA';
+  if (t.estado === 'AGOTADA') return 'AGOTADA';
+  return t.cantidadTotal > 1 && t.precio !== null && t.precio > PRECIO_MINIMO_REAL ? 'PROXIMA' : 'SIN_CANTIDAD';
+}
+
 function calcularVista(tipos, cenaHabilitada) {
   const enVenta = (t) => t.estado === 'EN_VENTA' || t.estado === 'POCAS';
   const agotada = (t) => cenaHabilitada && (t.estadoOrigen === 'active' ? t.cantidadDisponible === 0 : /agot|sold/i.test(t.estadoOrigen ?? ''));
-  const vendibles = tipos.filter(enVenta);
-  const agotadas = tipos.filter((t) => !enVenta(t) && agotada(t));
-  const cargada = tipos.find((t) => !enVenta(t) && !agotada(t) && t.estado === 'NO_HABILITADA' && t.cantidadDisponible > 0);
+  const ordenadas = [...tipos].sort(porOrden);
+  const vendibles = ordenadas.filter(enVenta);
+  const agotadas = ordenadas.filter((t) => !enVenta(t) && agotada(t));
   const suma = (lista, campo) => (lista.some((t) => t[campo] !== null) ? lista.reduce((n, t) => n + (t[campo] ?? 0), 0) : null);
   const estado = vendibles.length ? 'EN_VENTA' : agotadas.length ? 'AGOTADA' : 'PROXIMAMENTE';
   const disponibles = suma(vendibles, 'cantidadDisponible');
+  // La tanda actual es la que está en venta; si no hay, la última agotada; si no, la primera por orden.
+  const actual = estado === 'EN_VENTA' ? vendibles[0] : estado === 'AGOTADA' ? agotadas[agotadas.length - 1] : ordenadas[0];
+  const proximas = tipos.filter((t) => t.fase === 'PROXIMA');
   return {
     estado,
     pocas: estado === 'EN_VENTA' && disponibles !== null && disponibles <= UMBRAL_POCAS,
     disponibles,
     total: suma(vendibles, 'cantidadTotal'),
-    tandaId: (vendibles[0] ?? agotadas[agotadas.length - 1])?.id ?? null,
-    proxima: cargada ? { id: cargada.id, tipo: cargada.tipo, cantidad: cargada.cantidadTotal ?? cargada.cantidadDisponible, precio: esSimbolico(cargada.precio) ? null : cargada.precio } : null,
+    tandaId: actual?.id ?? null,
+    hayOtraPorVenir: actual ? ordenadas.some((t) => porOrden(t, actual) > 0 && t.estadoOrigen !== 'active') : false,
+    vanASalir: proximas.length ? suma(proximas, 'cantidadTotal') : null,
   };
 }
 
@@ -66,12 +80,14 @@ export function normalizarCena(ev, ahora, retenidos = []) {
         cantidadTotal: numero(s.stock),
         precio: numero(s.price),
         estadoOrigen: s.status ?? null,
+        prioridad: numero(s.priority),
       };
       t.estado = calcularEstado(t, cenaHabilitada);
       return t;
     })
     .concat(retenidos.map((t) => ({ ...t, estado: calcularEstado(t, cenaHabilitada) })))
     .sort((a, b) => a.id - b.id);
+  for (const t of tipos) t.fase = faseTanda(t);
   const estado = tipos.length
     ? ORDEN_ESTADOS[Math.min(...tipos.map((t) => ORDEN_ESTADOS.indexOf(t.estado)))]
     : 'NO_HABILITADA';
@@ -82,6 +98,8 @@ export function normalizarCena(ev, ahora, retenidos = []) {
     fechaFin: ev.date_end ?? null,
     lugar: LUGAR,
     descripcion: ev.description || null,
+    carreras: Array.isArray(ev.career_names) ? ev.career_names : [],
+    limiteEntradas: numero(ev.ticket_limit),
     link: linkCena(ev.id),
     estadoOrigen: ev.status ?? null,
     estado,
